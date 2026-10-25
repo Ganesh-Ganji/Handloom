@@ -49,80 +49,24 @@ const CONFIG = {
   currency: "₹"                       // shown before plain-number prices
 };
 
-/* ─── Decorative ikkat canvas ─────────────────────────────── */
-function drawIkkat(canvas, opts) {
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.offsetWidth || 640, H = canvas.offsetHeight || 480;
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
+/* ─── Decorative ikkat pattern — CSS only, no canvas ──────── */
+(function initPattern() {
+  // Replace canvas elements with lightweight CSS div patterns
+  // No JS drawing, no blur filters, no DPR scaling = near-zero memory
 
-  const { bg = "#0D0F18", colors = ["#C89B4A","#1C2040","#EDE8DF"], motifSize = 72, blur = 3 } = opts || {};
-
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-  const cols = Math.ceil(W / motifSize) + 2;
-  const rows = Math.ceil(H / motifSize) + 2;
-
-  for (let r = -1; r < rows; r++) {
-    for (let c = -1; c < cols; c++) {
-      const cx = c * motifSize + (r % 2 === 0 ? 0 : motifSize / 2);
-      const cy = r * motifSize * 0.86;
-      const hue = colors[(r * 3 + c) % colors.length];
-
-      ctx.save();
-      ctx.translate(cx + motifSize / 2, cy + motifSize / 2);
-
-      // Ikkat bleed — horizontal smear
-      ctx.filter = `blur(${blur}px)`;
-      ctx.save();
-      ctx.scale(1.4, 0.85);
-
-      // Diamond motif
-      ctx.beginPath();
-      const s = motifSize * 0.48;
-      ctx.moveTo(0, -s); ctx.lineTo(s * 0.65, 0);
-      ctx.lineTo(0, s); ctx.lineTo(-s * 0.65, 0);
-      ctx.closePath();
-      ctx.fillStyle = hue;
-      ctx.globalAlpha = 0.55;
-      ctx.fill();
-
-      // Inner diamond
-      ctx.beginPath();
-      const si = s * 0.5;
-      ctx.moveTo(0, -si); ctx.lineTo(si * 0.65, 0);
-      ctx.lineTo(0, si); ctx.lineTo(-si * 0.65, 0);
-      ctx.closePath();
-      ctx.fillStyle = colors[(colors.indexOf(hue) + 1) % colors.length];
-      ctx.globalAlpha = 0.4;
-      ctx.fill();
-
-      ctx.restore();
-      ctx.filter = "none";
-      ctx.restore();
-    }
+  const heroBg = document.getElementById("heroBg");
+  if (heroBg) {
+    const div = document.createElement("div");
+    div.className = "hero-pattern";
+    heroBg.replaceWith(div);
   }
-}
 
-(function initCanvases() {
-  const hero = document.getElementById("heroBg");
-  const motif = document.getElementById("motifCanvas");
-
-  function resize() {
-    if (hero) {
-      hero.style.width = hero.parentElement.offsetWidth + "px";
-      hero.style.height = hero.parentElement.offsetHeight + "px";
-      drawIkkat(hero, { bg: "#0D0F18", colors: ["#C89B4A","#1C2040","#EDE8DF","#9A3030"], motifSize: 80, blur: 3.5 });
-    }
-    if (motif) {
-      motif.style.width = motif.parentElement.offsetWidth + "px";
-      motif.style.height = motif.parentElement.offsetHeight + "px";
-      drawIkkat(motif, { bg: "#1C2040", colors: ["#C89B4A","#0D0F18","#EDE8DF","#9A3030"], motifSize: 60, blur: 2.5 });
-    }
+  const motifCanvas = document.getElementById("motifCanvas");
+  if (motifCanvas) {
+    const div = document.createElement("div");
+    div.className = "motif-pattern";
+    motifCanvas.replaceWith(div);
   }
-  window.addEventListener("resize", resize, { passive: true });
-  resize();
 })();
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -191,20 +135,26 @@ function rowsToItems(rows){
 }
 
 /* ─── sample designs ──────────────────────────────────────── */
-function sampleImg(colors, motifSize){
-  const c = document.createElement("canvas");
-  c.width = 600; c.height = 750;
-  drawIkkat(c, { bg: colors[0], colors, motifSize: motifSize || 90, blur: 4 });
-  return c.toDataURL();
+// Tiny inline SVGs as placeholders — no canvas, no memory spike
+function sampleSvg(bg, accent) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='375'>
+    <rect width='300' height='375' fill='${bg}'/>
+    <polygon points='150,40 220,140 150,240 80,140' fill='${accent}' opacity='0.5'/>
+    <polygon points='150,80 200,140 150,200 100,140' fill='${accent}' opacity='0.35'/>
+    <line x1='0' y1='0' x2='300' y2='375' stroke='${accent}' stroke-width='1' opacity='0.15'/>
+    <line x1='300' y1='0' x2='0' y2='375' stroke='${accent}' stroke-width='1' opacity='0.15'/>
+    <polygon points='150,180 220,280 150,340 80,280' fill='${accent}' opacity='0.3'/>
+  </svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
 }
 function sampleItems(){
-  const mk=(id,name,price,desc,det,cols,sold)=>({id,name,price,description:desc,soldOut:!!sold,details:det,
-    photos:[{thumb:[sampleImg(cols)],full:[sampleImg(cols)]}]});
+  const mk=(id,name,price,desc,det,bg,accent,sold)=>({id,name,price,description:desc,soldOut:!!sold,details:det,
+    photos:[{thumb:[sampleSvg(bg,accent)],full:[sampleSvg(bg,accent)]}]});
   return [
-    mk(0,"Indigo Diamond Saree","₹4,200","Sample entry. Replace with your own designs from the Google Sheet.",[["Fabric","Cotton"],["Colours","Indigo, kora, madder"],["Length","5.5 m + blouse"]],["#1B2A57","#C89B4A","#EDE8DF","#9A3030"]),
-    mk(1,"Madder Red Dupatta","₹1,650","Sample entry.",[["Fabric","Cotton"],["Colours","Red, black"],["Length","2.4 m"]],["#7d2327","#C89B4A","#EDE8DF","#1B2A57"]),
-    mk(2,"Black & Kora Fabric","₹650 per metre","Sample entry.",[["Fabric","Cotton"],["Width","44 in"]],["#131620","#C89B4A","#EDE8DF","#7d2327"]),
-    mk(3,"Green Border Saree","₹5,100","Sample entry.",[["Fabric","Cotton silk"],["Colours","Green, kora"],["Length","5.5 m + blouse"]],["#1a3d2e","#C89B4A","#EDE8DF","#c8a03a"],true)
+    mk(0,"Indigo Diamond Saree","₹4,200","Sample entry. Replace with your own designs from the Google Sheet.",[["Fabric","Cotton"],["Colours","Indigo, kora, madder"],["Length","5.5 m + blouse"]],"#1B2A57","#C89B4A"),
+    mk(1,"Madder Red Dupatta","₹1,650","Sample entry.",[["Fabric","Cotton"],["Colours","Red, black"],["Length","2.4 m"]],"#7d2327","#E2BC78"),
+    mk(2,"Black & Kora Fabric","₹650 per metre","Sample entry.",[["Fabric","Cotton"],["Width","44 in"]],"#131620","#C89B4A"),
+    mk(3,"Green Border Saree","₹5,100","Sample entry.",[["Fabric","Cotton silk"],["Colours","Green, kora"],["Length","5.5 m + blouse"]],"#1a3d2e","#C89B4A",true)
   ];
 }
 
