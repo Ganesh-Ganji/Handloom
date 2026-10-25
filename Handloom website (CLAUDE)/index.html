@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Handloom Ikkat</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ── NAV ────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <span class="nav-brand" id="navBrand">Your Handloom</span>
+    <ul class="nav-links">
+      <li><a href="#designs">Designs</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── HERO ──────────────────────────────── -->
+<header class="hero">
+  <canvas class="hero-canvas" id="heroBg" aria-hidden="true"></canvas>
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <span class="hero-kicker">Handwoven · Ikkat</span>
+      <h1 id="shopName">Your<br><em>Handloom</em><br>Name</h1>
+      <p class="hero-sub" id="tagline">Ikkat woven on the loom, one design at a time.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold" href="#designs">Browse designs</a>
+        <a class="btn btn-ghost" href="#contact">Get in touch</a>
+      </div>
+    </div>
+    <div class="hero-motif">
+      <div class="motif-frame">
+        <canvas id="motifCanvas" aria-hidden="true"></canvas>
+        <div class="motif-caption">Each design is resist-dyed on the thread before weaving begins.</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── GALLERY ────────────────────────────── -->
+<main>
+  <section class="gallery-section" id="designs">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Our designs</h2>
+        <span class="count-tag" id="count"></span>
+      </div>
+      <div class="divider"></div>
+
+      <div id="notice"></div>
+
+      <div class="search-row">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <input type="search" id="searchInput" placeholder="Search designs, fabrics, colours…" aria-label="Search designs">
+        <button class="clear-btn" id="clearBtn" aria-label="Clear search">×</button>
+      </div>
+
+      <ul class="grid" id="grid"></ul>
+      <div class="no-results" id="noResults" hidden>
+        No designs match "<span id="noResultsQ"></span>". Try a different keyword.
+      </div>
+      <div class="state" id="state">Loading designs…</div>
+    </div>
+  </section>
+
+  <!-- ── CONTACT ────────────────────────────── -->
+  <section class="contact-section" id="contact">
+    <div class="wrap">
+      <h2>Visit or get in touch</h2>
+      <div class="contact-divider"></div>
+      <div class="contact-cols">
+        <div>
+          <div class="contact-label">Phone</div>
+          <p class="contact-val"><a id="phoneLink" href="#"></a></p>
+        </div>
+        <div>
+          <div class="contact-label">Address</div>
+          <p class="contact-val" id="address"></p>
+        </div>
+      </div>
+      <div class="contact-actions">
+        <a class="btn btn-wa" id="waGeneral" href="#" target="_blank" rel="noopener">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07a8.17 8.17 0 01-4.04-3.53c-.3-.52.3-.49.87-1.62a.55.55 0 00-.03-.52c-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51H7.9c-.17 0-.45.06-.69.31-.24.25-.91.89-.91 2.17s.93 2.52 1.06 2.7c.13.17 1.83 2.8 4.44 3.92.62.27 1.1.43 1.48.55.62.2 1.19.17 1.63.1.5-.07 1.53-.62 1.75-1.23.22-.6.22-1.12.15-1.23-.07-.1-.27-.17-.57-.32zM12 2a10 10 0 00-8.68 14.94L2 22l5.19-1.36A10 10 0 1012 2z"/>
+          </svg>
+          Message on WhatsApp
+        </a>
+        <a class="btn btn-ghost" id="mapLink" href="#" target="_blank" rel="noopener">Open in Maps</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ── FOOTER ────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-brand" id="footName">Your Handloom</span>
+    <span>© <span id="year"></span> · Handwoven Ikkat</span>
+  </div>
+</footer>
+
+<!-- ── DETAIL DIALOG ─────────────────────── -->
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg">
+    <div class="dlg-media">
+      <img class="main-img" id="dlgMain" alt="">
+      <div class="thumbs" id="dlgThumbs"></div>
+    </div>
+    <div class="dlg-body">
+      <button class="close" id="dlgClose" aria-label="Close">✕</button>
+      <div class="dlg-kicker">Handwoven Ikkat</div>
+      <h3 id="dlgTitle"></h3>
+      <p class="dlg-price" id="dlgPrice"></p>
+      <p class="dlg-desc" id="dlgDesc"></p>
+      <dl id="dlgDetails"></dl>
+      <div class="dlg-footer">
+        <a class="btn btn-wa" id="dlgWa" href="#" target="_blank" rel="noopener" style="width:100%;justify-content:center;">
+          Ask about this design on WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- Scripts -->
+<script src="app.js"></script>
+
+</body>
+</html>
