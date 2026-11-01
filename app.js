@@ -5,9 +5,10 @@
    Keep that CSV beside index.html and app.js.
 
    Required CSV columns: Name, Photo, Price, Description, Available.
-   Put one design per row. In Photo, use a Google Drive folder link
-   for that design; all images inside the folder are shown together.
-   Set the folder to "Anyone with the link" as Viewer.
+   Put one design per row. In Photo, use a Google Drive folder link.
+   Each image in the folder appears as its own photo card with the same
+   design details. Set the folder to "Anyone with the link" as Viewer.
+   Add your deployed Apps Script web-app URL to driveListingUrl below.
 
    Optional columns such as Fabric, Colours, and Length appear in the
    design details. A blank price hides the price. A blank Available
@@ -23,6 +24,8 @@ const CONFIG = {
   // Loads the catalog CSV from this website folder.
   // Keep ganesh-handloom-products.csv beside index.html.
   sheetCsvUrl: "./ganesh-handloom-products.csv",
+  // Deploy Code.gs as a web app, then paste its /exec URL here.
+  driveListingUrl: "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE",
 
   whatsapp: "91XXXXXXXXXX",          // country code + number, digits only
   phone: "+91 XXXXX XXXXX",
@@ -89,8 +92,41 @@ function driveUrls(id,w){
     `https://lh3.googleusercontent.com/d/${id}=w${w}`
   ];
 }
-function driveFolderEmbedUrl(id){
-  return `https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}#grid`;
+function fetchDriveManifest(){
+  return new Promise((resolve, reject)=>{
+    const endpoint = CONFIG.driveListingUrl.trim();
+    if(!endpoint || endpoint === "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE"){
+      reject(new Error("Add the Apps Script web-app URL to driveListingUrl in app.js."));
+      return;
+    }
+    const script = document.createElement("script");
+    const callbackName = "ganeshHandloomDriveData";
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      script.remove();
+      delete window[callbackName];
+    };
+    const timeout = setTimeout(()=>{
+      if(settled) return;
+      settled = true; cleanup();
+      reject(new Error("The Apps Script photo list timed out. Check its deployment URL and access setting."));
+    }, 20000);
+    window[callbackName] = payload => {
+      if(settled) return;
+      settled = true; cleanup();
+      if(payload && payload.error) reject(new Error(payload.error));
+      else resolve(payload?.images || []);
+    };
+    script.onerror = () => {
+      if(settled) return;
+      settled = true; cleanup();
+      reject(new Error("Could not reach the Apps Script photo list. Check the /exec URL and deployment access."));
+    };
+    const separator = endpoint.includes("?") ? "&" : "?";
+    script.src = `${endpoint}${separator}prefix=${callbackName}&v=${Date.now()}`;
+    document.head.appendChild(script);
+  });
 }
 function showPrice(p){
   p=(p||"").trim();
@@ -141,6 +177,29 @@ function rowsToItems(rows){
       details
     };
   }).filter(it=>it.folderIds.length || it.photos.length || it.name!=="Untitled design");
+}
+
+async function resolveFolderPhotos(items){
+  const errors=[];
+  const folderItems = items.filter(it=>it.folderIds.length);
+  if(!folderItems.length) return errors;
+  try {
+    const manifest = await fetchDriveManifest();
+    folderItems.forEach(it=>{
+      const seen = new Set(it.photos.map(photo => photo.id).filter(Boolean));
+      manifest.filter(file=>it.folderIds.includes(file.folderId)).forEach(file=>{
+        if(!seen.has(file.id)){
+          it.photos.push({ id:file.id, thumb:driveUrls(file.id,600), full:driveUrls(file.id,1200) });
+          seen.add(file.id);
+        }
+      });
+      if(!it.photos.length) errors.push(`No image files found in the Drive folder for ${it.name}.`);
+    });
+  } catch(error){
+    console.error("Could not load Drive folder photos:", error);
+    errors.push(error.message || "Could not load Drive folder photos.");
+  }
+  return [...new Set(errors)];
 }
 
 /* ─── sample designs ──────────────────────────────────────── */
@@ -216,7 +275,10 @@ function applySearch(){
   const nr = $("noResults");
   if(items.length === 0 && query){ $("noResultsQ").textContent = query; nr.hidden = false; }
   else { nr.hidden = true; }
-  $("count").textContent = items.length + (items.length === 1 ? " design" : " designs");
+  const photoCount = items.reduce((total, item) => total + item.photos.length, 0);
+  const designLabel = items.length === 1 ? " design" : " designs";
+  const photoLabel = photoCount === 1 ? " photo" : " photos";
+  $("count").textContent = `${items.length}${designLabel} · ${photoCount}${photoLabel}`;
 }
 
 /* ─── render ──────────────────────────────────────────────── */
@@ -227,44 +289,36 @@ function renderGrid(items){
   const grid = $("grid");
   grid.innerHTML = "";
   items.forEach(it => {
-    const li = document.createElement("li");
-    const card = document.createElement("article");
-    card.className = "item";
+    it.photos.forEach((photo, photoIndex) => {
+      const li = document.createElement("li");
+      const card = document.createElement("article");
+      card.className = "item";
 
-    const thumb = document.createElement("div"); thumb.className = "thumb";
-    if(it.folderIds.length){
-      const frame = document.createElement("iframe");
-      frame.className = "folder-preview";
-      frame.src = driveFolderEmbedUrl(it.folderIds[0]);
-      frame.title = `Photos of ${it.name}`;
-      frame.loading = "lazy";
-      frame.tabIndex = -1;
-      frame.setAttribute("aria-hidden", "true");
-      thumb.appendChild(frame);
-    } else if(it.photos.length){
+      const thumb = document.createElement("div"); thumb.className = "thumb";
       const img = document.createElement("img");
-      img.alt = it.name; img.loading = "lazy"; img.decoding = "async";
-      setImg(img, it.photos[0].thumb);
+      img.alt = `${it.name}, photo ${photoIndex + 1}`;
+      img.loading = "lazy"; img.decoding = "async";
+      setImg(img, photo.thumb);
       thumb.appendChild(img);
-    }
-    if(it.soldOut){
-      const b = document.createElement("span"); b.className = "badge"; b.textContent = "Sold out";
-      thumb.appendChild(b);
-    }
-    const ov = document.createElement("div"); ov.className = "thumb-overlay";
-    ov.innerHTML = `<span>View details ↗</span>`;
-    thumb.appendChild(ov);
+      if(it.soldOut){
+        const b = document.createElement("span"); b.className = "badge"; b.textContent = "Sold out";
+        thumb.appendChild(b);
+      }
+      const ov = document.createElement("div"); ov.className = "thumb-overlay";
+      ov.innerHTML = `<span>View details ↗</span>`;
+      thumb.appendChild(ov);
 
-    const cap = document.createElement("div"); cap.className = "cap";
-    const n = document.createElement("span"); n.className = "cap-name"; n.textContent = it.name; cap.appendChild(n);
-    if(it.price){ const p = document.createElement("span"); p.className = "cap-price"; p.textContent = it.price; cap.appendChild(p); }
+      const cap = document.createElement("div"); cap.className = "cap";
+      const n = document.createElement("span"); n.className = "cap-name"; n.textContent = it.name; cap.appendChild(n);
+      if(it.price){ const p = document.createElement("span"); p.className = "cap-price"; p.textContent = it.price; cap.appendChild(p); }
 
-    const open = document.createElement("button");
-    open.className = "item-open"; open.type = "button";
-    open.setAttribute("aria-label", "View details: " + it.name);
-    open.addEventListener("click", () => openDesign(it));
-    card.append(thumb, cap, open);
-    li.appendChild(card); grid.appendChild(li);
+      const open = document.createElement("button");
+      open.className = "item-open"; open.type = "button";
+      open.setAttribute("aria-label", `View ${it.name}, photo ${photoIndex + 1}`);
+      open.addEventListener("click", () => openDesign(it, photoIndex));
+      card.append(thumb, cap, open);
+      li.appendChild(card); grid.appendChild(li);
+    });
   });
 }
 
@@ -272,7 +326,7 @@ function renderGrid(items){
 const dlg = $("dlg");
 function waLink(text){ return `https://wa.me/${CONFIG.whatsapp.replace(/\D/g,"")}?text=${encodeURIComponent(text)}`; }
 
-function openDesign(it){
+function openDesign(it, startIndex=0){
   $("dlgTitle").textContent = it.name;
   $("dlgPrice").textContent = it.price; $("dlgPrice").hidden = !it.price;
   $("dlgDesc").textContent = it.description; $("dlgDesc").hidden = !it.description;
@@ -286,20 +340,10 @@ function openDesign(it){
   });
   dl.hidden = !it.details.length;
 
-  const main = $("dlgMain"), thumbs = $("dlgThumbs"), folderFrame = $("dlgFolder");
+  const main = $("dlgMain"), thumbs = $("dlgThumbs");
   thumbs.innerHTML = "";
   main.alt = it.name;
-  if(it.folderIds.length){
-    main.hidden = true;
-    thumbs.hidden = true;
-    folderFrame.hidden = false;
-    folderFrame.src = driveFolderEmbedUrl(it.folderIds[0]);
-    folderFrame.title = `All photos of ${it.name}`;
-  } else {
-    folderFrame.hidden = true;
-    folderFrame.removeAttribute("src");
-    main.hidden = false;
-  }
+  main.hidden = !it.photos.length;
   const show = (ph, btnEl) => {
     main.style.visibility = "visible"; setImg(main, ph.full);
     thumbs.querySelectorAll("button").forEach(b => b.removeAttribute("aria-current"));
@@ -314,9 +358,11 @@ function openDesign(it){
         if(i === 0) b.setAttribute("aria-current", "true");
       }
     });
-    show(it.photos[0], thumbs.querySelector("button"));
+    const selectedIndex = Math.min(startIndex, it.photos.length - 1);
+    const selectedThumb = thumbs.querySelectorAll("button")[selectedIndex] || null;
+    show(it.photos[selectedIndex], selectedThumb);
   }
-  if(!it.folderIds.length) thumbs.hidden = it.photos.length < 2;
+  thumbs.hidden = it.photos.length < 2;
   $("dlgWa").href = waLink(`Hello, I'm interested in "${it.name}"${it.price ? " (" + it.price + ")" : ""}. Is it available?`);
   dlg.showModal();
 }
@@ -362,19 +408,25 @@ async function boot(){
       1. Create a Google Sheet with columns: <em>Name, Photo, Price, Description, Available</em><br>
       2. In the <strong>Photo</strong> column, paste a <strong>Google Drive folder link</strong>
          for each design (one folder per design row, shared as "Anyone with the link").<br>
-         All photos inside that folder will load automatically.<br>
+         Deploy <code>Code.gs</code> as an Apps Script web app and put its URL in <code>driveListingUrl</code> in app.js. Each folder photo will appear as its own card.<br>
       3. Publish the Sheet as CSV (File → Share → Publish to web → CSV)
          and paste that URL into <code>sheetCsvUrl</code> in app.js.
     </p>`;
     state.hidden = true; applySearch(); return;
   }
   try{
+    state.textContent = "Loading collection and photos…";
     const res = await fetch(CONFIG.sheetCsvUrl, { cache: "no-store" });
     if(!res.ok) throw new Error("HTTP " + res.status);
     const rows = parseCSV(await res.text());
     if(rows.length < 2){ state.textContent = "No designs yet. Add rows to ganesh-handloom-products.csv and refresh."; return; }
     ITEMS = rowsToItems(rows);
-    state.hidden = true; applySearch();
+    const photoErrors = await resolveFolderPhotos(ITEMS);
+    applySearch();
+    if(photoErrors.length){
+      state.textContent = photoErrors[0];
+      state.hidden = false;
+    } else state.hidden = true;
   } catch(err){
     console.error(err);
     state.innerHTML = "Couldn't load designs. Make sure ganesh-handloom-products.csv is beside index.html and contains a header row and at least one design row, then refresh.";
