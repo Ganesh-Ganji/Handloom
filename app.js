@@ -1,46 +1,28 @@
 /* ============================================================
-   EDIT THIS BLOCK — everything else works on its own.
-   ============================================================
+   CATALOG SETUP
 
-   ── HOW TO CONNECT YOUR GOOGLE SHEET + DRIVE PHOTOS ──────────
+   This website loads ganesh-handloom-products.csv from this folder.
+   Keep that CSV beside index.html and app.js.
 
-   STEP 1 — Create your Google Sheet with these column headers
-   (column order does not matter, names must match exactly):
+   Required CSV columns: Name, Photo, Price, Description, Available.
+   Put one design per row. In Photo, use a Google Drive folder link
+   for that design; all images inside the folder are shown together.
+   Set the folder to "Anyone with the link" as Viewer.
 
-     Name        | The design name shown on the card
-     Photo       | Google Drive photo link(s) — see Step 2
-     Price       | e.g.  4200  or  ₹4,200  or  "₹650 per metre"
-     Description | Short description (optional)
-     Available   | Leave blank or "Yes" if available; type "No" or
-                 |   "Sold out" to show the Sold Out badge
-     Fabric      | (optional extra column — any label you like)
-     Colours     | (optional extra column)
-     Length      | (optional extra column)
-     ...          Any extra columns appear in the detail panel
+   Optional columns such as Fabric, Colours, and Length appear in the
+   design details. A blank price hides the price. A blank Available
+   value is treated as available, so confirm availability before launch.
 
-   STEP 2 — Add Google Drive photo links to the Photo column
-     a) Upload your photo to Google Drive
-     b) Right-click → "Get link" → set access to "Anyone with the link"
-     c) Copy the link — it looks like:
-           https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ/view
-     d) Paste the whole link into the Photo column
-        To show MULTIPLE photos for one design, separate links with a comma:
-           https://drive.google.com/file/d/.../view, https://drive.google.com/file/d/.../view
-
-   STEP 3 — Publish your Sheet as CSV
-     a) In Google Sheets → File → Share → Publish to web
-     b) Choose the sheet tab (e.g. "Sheet1") and format "Comma-separated values (.csv)"
-     c) Click Publish → copy the URL shown
-     d) Paste that URL into sheetCsvUrl below
-
+   To load a published Google Sheets CSV instead, change sheetCsvUrl
+   below to that published CSV URL.
    ============================================================ */
 const CONFIG = {
   shopName: "Your Handloom Name",
   tagline: "Ikkat woven on the loom, one design at a time.",
 
-  // Paste your Google Sheet CSV URL here (from Step 3 above).
-  // Leave "" to see sample designs instead.
-  sheetCsvUrl: "",
+  // Loads the catalog CSV from this website folder.
+  // Keep ganesh-handloom-products.csv beside index.html.
+  sheetCsvUrl: "./ganesh-handloom-products.csv",
 
   whatsapp: "91XXXXXXXXXX",          // country code + number, digits only
   phone: "+91 XXXXX XXXXX",
@@ -435,13 +417,15 @@ async function boot(){
     const res = await fetch(CONFIG.sheetCsvUrl, { cache: "no-store" });
     if(!res.ok) throw new Error("HTTP " + res.status);
     const rows = parseCSV(await res.text());
-    if(rows.length < 2){ state.textContent = "No designs yet. Add rows to your Google Sheet and refresh."; return; }
+    if(rows.length < 2){ state.textContent = "No designs yet. Add rows to ganesh-handloom-products.csv and refresh."; return; }
     ITEMS = rowsToItems(rows);
     state.hidden = true; applySearch();
     resolveFolderPhotos(ITEMS); // async: fetches folder contents then re-renders
   } catch(err){
     console.error(err);
-    state.innerHTML = "Couldn't load designs. Make sure your Google Sheet is <strong>published as CSV</strong> (File → Share → Publish to web → CSV) and the URL in CONFIG is correct, then refresh.";
+    state.innerHTML = "Couldn't load designs. Make sure ganesh-handloom-products.csv is beside index.html and contains a header row and at least one design row, then refresh.";
   }
 }
 boot();
+
+
