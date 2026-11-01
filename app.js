@@ -136,14 +136,42 @@ function rowsToItems(rows){
 
 /* ─── sample designs ──────────────────────────────────────── */
 // Tiny inline SVGs as placeholders — no canvas, no memory spike
-function sampleSvg(bg, accent) {
+function sampleSvg(bg, accent, accent2) {
+  accent2 = accent2 || accent;
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='375'>
+    <defs>
+      <pattern id='warp' width='6' height='6' patternUnits='userSpaceOnUse'>
+        <rect width='6' height='6' fill='none'/>
+        <rect width='1' height='6' fill='${accent}' opacity='0.12'/>
+      </pattern>
+      <pattern id='weft' width='6' height='6' patternUnits='userSpaceOnUse'>
+        <rect width='6' height='1' fill='${accent}' opacity='0.09'/>
+      </pattern>
+    </defs>
     <rect width='300' height='375' fill='${bg}'/>
-    <polygon points='150,40 220,140 150,240 80,140' fill='${accent}' opacity='0.5'/>
-    <polygon points='150,80 200,140 150,200 100,140' fill='${accent}' opacity='0.35'/>
-    <line x1='0' y1='0' x2='300' y2='375' stroke='${accent}' stroke-width='1' opacity='0.15'/>
-    <line x1='300' y1='0' x2='0' y2='375' stroke='${accent}' stroke-width='1' opacity='0.15'/>
-    <polygon points='150,180 220,280 150,340 80,280' fill='${accent}' opacity='0.3'/>
+    <rect width='300' height='375' fill='url(#warp)'/>
+    <rect width='300' height='375' fill='url(#weft)'/>
+    <!-- pallu band -->
+    <rect x='0' y='300' width='300' height='75' fill='${accent}' opacity='0.22'/>
+    <line x1='0' y1='300' x2='300' y2='300' stroke='${accent}' stroke-width='1.5' opacity='0.5'/>
+    <!-- central motif row -->
+    <g opacity='0.7'>
+      <polygon points='75,110 100,150 75,190 50,150' fill='${accent}' opacity='0.55'/>
+      <polygon points='150,90 185,150 150,210 115,150' fill='${accent2}' opacity='0.65'/>
+      <polygon points='225,110 250,150 225,190 200,150' fill='${accent}' opacity='0.55'/>
+    </g>
+    <!-- inner motifs -->
+    <polygon points='150,112 173,150 150,188 127,150' fill='${bg}' opacity='0.4'/>
+    <!-- border lines -->
+    <rect x='14' y='14' width='272' height='347' fill='none' stroke='${accent}' stroke-width='1' opacity='0.25' rx='2'/>
+    <rect x='22' y='22' width='256' height='331' fill='none' stroke='${accent}' stroke-width='0.5' opacity='0.15' rx='1'/>
+    <!-- zari dots in pallu -->
+    <circle cx='75' cy='332' r='4' fill='${accent}' opacity='0.7'/>
+    <circle cx='150' cy='332' r='4' fill='${accent}' opacity='0.7'/>
+    <circle cx='225' cy='332' r='4' fill='${accent}' opacity='0.7'/>
+    <circle cx='75' cy='356' r='3' fill='${accent2}' opacity='0.5'/>
+    <circle cx='150' cy='356' r='3' fill='${accent2}' opacity='0.5'/>
+    <circle cx='225' cy='356' r='3' fill='${accent2}' opacity='0.5'/>
   </svg>`;
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
@@ -151,10 +179,12 @@ function sampleItems(){
   const mk=(id,name,price,desc,det,bg,accent,sold)=>({id,name,price,description:desc,soldOut:!!sold,details:det,
     photos:[{thumb:[sampleSvg(bg,accent)],full:[sampleSvg(bg,accent)]}]});
   return [
-    mk(0,"Indigo Diamond Saree","₹4,200","Sample entry. Replace with your own designs from the Google Sheet.",[["Fabric","Cotton"],["Colours","Indigo, kora, madder"],["Length","5.5 m + blouse"]],"#1B2A57","#C89B4A"),
-    mk(1,"Madder Red Dupatta","₹1,650","Sample entry.",[["Fabric","Cotton"],["Colours","Red, black"],["Length","2.4 m"]],"#7d2327","#E2BC78"),
-    mk(2,"Black & Kora Fabric","₹650 per metre","Sample entry.",[["Fabric","Cotton"],["Width","44 in"]],"#131620","#C89B4A"),
-    mk(3,"Green Border Saree","₹5,100","Sample entry.",[["Fabric","Cotton silk"],["Colours","Green, kora"],["Length","5.5 m + blouse"]],"#1a3d2e","#C89B4A",true)
+    mk(0,"Indigo Diamond Saree","₹4,200","Classic double-ikat weave in deep indigo with kora motifs. Replace these with your real designs by connecting your Google Sheet.",[["Fabric","Cotton"],["Colours","Indigo, kora, madder"],["Length","5.5 m + blouse"]],"#1B2A57","#C89B4A","#E3C48C"),
+    mk(1,"Madder Red Dupatta","₹1,650","Vibrant natural-dye red with geometric buti pattern.",[["Fabric","Cotton"],["Colours","Madder red, black"],["Length","2.4 m"]],"#6d2020","#E2BC78","#f5c8a0"),
+    mk(2,"Black & Gold Fabric","₹650 per metre","Rich black base with zari-effect gold warp stripes.",[["Fabric","Cotton"],["Width","44 in"],["MOQ","5 metres"]],"#1a1410","#C89B4A","#E3C48C"),
+    mk(3,"Moss Green Saree","₹5,100","Earthy moss-green with temple border pallu in kora.",[["Fabric","Cotton silk"],["Colours","Moss green, kora"],["Length","5.5 m + blouse"]],"#283a22","#C89B4A","#b5c99a",true),
+    mk(4,"Rust Ikat Yardage","₹780 per metre","Traditional rust-and-cream chevron ikat for dress fabric.",[["Fabric","Cotton"],["Width","44 in"]],"#7a2e18","#E3C48C","#f5c8a0"),
+    mk(5,"Navy & Gold Saree","₹6,200","Deep navy with zari borders and classic diamond motifs.",[["Fabric","Silk cotton"],["Colours","Navy, gold"],["Length","5.5 m + blouse"]],"#1a2644","#C89B4A","#E3C48C")
   ];
 }
 
@@ -204,7 +234,8 @@ function renderGrid(items){
       const b = document.createElement("span"); b.className = "badge"; b.textContent = "Sold out";
       thumb.appendChild(b);
     }
-    const ov = document.createElement("div"); ov.className = "thumb-overlay"; ov.textContent = "View details";
+    const ov = document.createElement("div"); ov.className = "thumb-overlay";
+    ov.innerHTML = `<span>View details ↗</span>`;
     thumb.appendChild(ov);
 
     const cap = document.createElement("div"); cap.className = "cap";

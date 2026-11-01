@@ -4,18 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Handloom Ikkat</title>
-
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-
-  <!-- Styles -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ── NAV ────────────────────────────────── -->
+<!-- NAV -->
 <nav>
   <div class="nav-inner">
     <span class="nav-brand" id="navBrand">Your Handloom</span>
@@ -26,9 +22,9 @@
   </div>
 </nav>
 
-<!-- ── HERO ──────────────────────────────── -->
+<!-- HERO -->
 <header class="hero">
-  <canvas class="hero-canvas" id="heroBg" aria-hidden="true"></canvas>
+  <div class="hero-pattern" aria-hidden="true"></div>
   <div class="wrap hero-inner">
     <div class="hero-text">
       <span class="hero-kicker">Handwoven · Ikkat</span>
@@ -41,14 +37,27 @@
     </div>
     <div class="hero-motif">
       <div class="motif-frame">
-        <canvas id="motifCanvas" aria-hidden="true"></canvas>
+        <div class="motif-pattern"></div>
+        <div class="hero-tag">
+          <span class="hero-tag-dot"></span>Handwoven &amp; authentic
+        </div>
         <div class="motif-caption">Each design is resist-dyed on the thread before weaving begins.</div>
       </div>
     </div>
   </div>
 </header>
 
-<!-- ── GALLERY ────────────────────────────── -->
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item"><strong>100%</strong><span>Handwoven</span></div>
+    <div class="stat-item"><strong>Pure</strong><span>Natural fibres</span></div>
+    <div class="stat-item"><strong>Direct</strong><span>From the loom</span></div>
+    <div class="stat-item"><strong>Custom</strong><span>Orders welcome</span></div>
+  </div>
+</div>
+
+<!-- GALLERY -->
 <main>
   <section class="gallery-section" id="designs">
     <div class="wrap">
@@ -56,10 +65,8 @@
         <h2>Our designs</h2>
         <span class="count-tag" id="count"></span>
       </div>
-      <div class="divider"></div>
-
+      <div class="divider"><div class="divider-diamond"></div></div>
       <div id="notice"></div>
-
       <div class="search-row">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.6"/>
@@ -68,7 +75,6 @@
         <input type="search" id="searchInput" placeholder="Search designs, fabrics, colours…" aria-label="Search designs">
         <button class="clear-btn" id="clearBtn" aria-label="Clear search">×</button>
       </div>
-
       <ul class="grid" id="grid"></ul>
       <div class="no-results" id="noResults" hidden>
         No designs match "<span id="noResultsQ"></span>". Try a different keyword.
@@ -77,7 +83,7 @@
     </div>
   </section>
 
-  <!-- ── CONTACT ────────────────────────────── -->
+  <!-- CONTACT -->
   <section class="contact-section" id="contact">
     <div class="wrap">
       <h2>Visit or get in touch</h2>
@@ -94,26 +100,24 @@
       </div>
       <div class="contact-actions">
         <a class="btn btn-wa" id="waGeneral" href="#" target="_blank" rel="noopener">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07a8.17 8.17 0 01-4.04-3.53c-.3-.52.3-.49.87-1.62a.55.55 0 00-.03-.52c-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51H7.9c-.17 0-.45.06-.69.31-.24.25-.91.89-.91 2.17s.93 2.52 1.06 2.7c.13.17 1.83 2.8 4.44 3.92.62.27 1.1.43 1.48.55.62.2 1.19.17 1.63.1.5-.07 1.53-.62 1.75-1.23.22-.6.22-1.12.15-1.23-.07-.1-.27-.17-.57-.32zM12 2a10 10 0 00-8.68 14.94L2 22l5.19-1.36A10 10 0 1012 2z"/>
-          </svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07a8.17 8.17 0 01-4.04-3.53c-.3-.52.3-.49.87-1.62a.55.55 0 00-.03-.52c-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51H7.9c-.17 0-.45.06-.69.31-.24.25-.91.89-.91 2.17s.93 2.52 1.06 2.7c.13.17 1.83 2.8 4.44 3.92.62.27 1.1.43 1.48.55.62.2 1.19.17 1.63.1.5-.07 1.53-.62 1.75-1.23.22-.6.22-1.12.15-1.23-.07-.1-.27-.17-.57-.32zM12 2a10 10 0 00-8.68 14.94L2 22l5.19-1.36A10 10 0 1012 2z"/></svg>
           Message on WhatsApp
         </a>
-        <a class="btn btn-ghost" id="mapLink" href="#" target="_blank" rel="noopener">Open in Maps</a>
+        <a class="btn btn-ghost-light" id="mapLink" href="#" target="_blank" rel="noopener">Open in Maps</a>
       </div>
     </div>
   </section>
 </main>
 
-<!-- ── FOOTER ────────────────────────────── -->
+<!-- FOOTER -->
 <footer>
   <div class="footer-inner">
     <span class="footer-brand" id="footName">Your Handloom</span>
-    <span>© <span id="year"></span> · Handwoven Ikkat</span>
+    <span class="footer-tagline">© <span id="year"></span> · Handwoven Ikkat</span>
   </div>
 </footer>
 
-<!-- ── DETAIL DIALOG ─────────────────────── -->
+<!-- DIALOG -->
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <div class="dlg">
     <div class="dlg-media">
@@ -136,8 +140,6 @@
   </div>
 </dialog>
 
-<!-- Scripts -->
 <script src="app.js"></script>
-
 </body>
 </html>
