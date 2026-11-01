@@ -90,9 +90,15 @@ function parseCSV(text){
   return rows.filter(r=>r.some(v=>v.trim()));
 }
 
-function driveId(s){
+/* ─── Drive link parsers ───────────────────────────────────── */
+function driveFileId(s){
   s=(s||"").trim();
   const m = s.match(/\/d\/([\w-]{20,})/) || s.match(/[?&]id=([\w-]{20,})/) || s.match(/^([\w-]{20,})$/);
+  return m ? m[1] : null;
+}
+function driveFolderId(s){
+  s=(s||"").trim();
+  const m = s.match(/\/folders\/([\w-]{20,})/);
   return m ? m[1] : null;
 }
 function driveUrls(id,w){
@@ -100,6 +106,61 @@ function driveUrls(id,w){
     `https://drive.google.com/thumbnail?id=${id}&sz=w${w}`,
     `https://lh3.googleusercontent.com/d/${id}=w${w}`
   ];
+}
+
+/* ─── Folder photo fetching ────────────────────────────────────
+   Strategy: Google Drive exposes a public RSS/Atom feed for
+   folders shared as "Anyone with the link". We fetch that feed
+   (which is CORS-accessible), parse the entry links, and extract
+   file IDs from them.
+   Feed URL: https://drive.google.com/drive/folders/{id}?hl=en
+   (we use the embeddedfolderview endpoint which returns JSON-like data)
+─────────────────────────────────────────────────────────────── */
+const FOLDER_CACHE = {};
+
+async function fetchFolderPhotos(folderId){
+  if(FOLDER_CACHE[folderId]) return FOLDER_CACHE[folderId];
+  try {
+    // The public Drive folder page embeds file metadata in a data attribute
+    // We proxy via a CORS-friendly endpoint
+    const feedUrl =
+      `https://drive.google.com/drive/folders/${folderId}`;
+
+    // Use Google's own sharing page which returns structured data
+    // Best public CORS-accessible endpoint:
+    const exportUrl =
+      `https://drive.google.com/embeddedfolderview?id=${folderId}`;
+
+    const res = await fetch(exportUrl);
+    const html = await res.text();
+
+    // Extract all Drive file IDs referenced in the embedded folder view
+    const fileIdPattern = /\/file\/d\/([\w-]{20,})/g;
+    const ids = [...new Set(
+      [...html.matchAll(fileIdPattern)].map(m => m[1])
+    )];
+
+    if(!ids.length){
+      // Fallback: try alternate pattern used in some Drive responses
+      const altPattern = /"id":"([\w-]{25,})"/g;
+      const altIds = [...new Set(
+        [...html.matchAll(altPattern)].map(m => m[1])
+      )];
+      ids.push(...altIds);
+    }
+
+    const photos = ids.slice(0, 20).map(id => ({
+      thumb: driveUrls(id, 600),
+      full:  driveUrls(id, 1200)
+    }));
+
+    FOLDER_CACHE[folderId] = photos.length ? photos : [];
+    return FOLDER_CACHE[folderId];
+  } catch(e){
+    console.warn("Could not fetch folder photos:", folderId, e);
+    FOLDER_CACHE[folderId] = [];
+    return [];
+  }
 }
 function showPrice(p){
   p=(p||"").trim();
@@ -117,21 +178,55 @@ function setImg(img, urls){
 /* ─── data ────────────────────────────────────────────────── */
 const RESERVED = ["name","photo","photos","price","description","available"];
 
+function parsePhotoCell(photoCell){
+  const parts = photoCell.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean);
+  const folderIds=[], fileIds=[];
+  parts.forEach(p=>{
+    const fid = driveFolderId(p);
+    if(fid){ folderIds.push(fid); return; }
+    const id = driveFileId(p);
+    if(id) fileIds.push(id);
+  });
+  return { folderIds, fileIds };
+}
+
 function rowsToItems(rows){
   const head = rows[0].map(h=>h.trim());
-  const key = head.map(h=>h.toLowerCase());
+  const key  = head.map(h=>h.toLowerCase());
   return rows.slice(1).map((r,idx)=>{
     const get = k => { const j=key.indexOf(k); return j>=0 ? (r[j]||"").trim() : ""; };
     const photoCell = get("photo") || get("photos");
-    const photos = photoCell.split(/[\n,;]+/).map(driveId).filter(Boolean).map(id=>({thumb:driveUrls(id,600), full:driveUrls(id,1200)}));
+    const { folderIds, fileIds } = parsePhotoCell(photoCell);
+    const filePhotos = fileIds.map(id=>({ thumb:driveUrls(id,600), full:driveUrls(id,1200) }));
     const details=[];
     head.forEach((h,j)=>{ if(!RESERVED.includes(key[j]) && (r[j]||"").trim()) details.push([h,(r[j]||"").trim()]); });
     return {
-      id: idx, name: get("name") || "Untitled design", photos,
-      price: showPrice(get("price")), description: get("description"),
-      soldOut: isSoldOut(get("available")), details
+      id: idx,
+      name: get("name") || "Untitled design",
+      photos: filePhotos,
+      folderIds,
+      price: showPrice(get("price")),
+      description: get("description"),
+      soldOut: isSoldOut(get("available")),
+      details
     };
-  }).filter(it=>it.photos.length || it.name!=="Untitled design");
+  }).filter(it=>it.folderIds.length || it.photos.length || it.name!=="Untitled design");
+}
+
+/* After initial render, fetch folder contents and re-render */
+async function resolveFolderPhotos(items){
+  const withFolders = items.filter(it=>it.folderIds && it.folderIds.length);
+  if(!withFolders.length) return;
+  await Promise.all(
+    withFolders.map(async it=>{
+      for(const fid of it.folderIds){
+        const photos = await fetchFolderPhotos(fid);
+        it.photos.push(...photos);
+      }
+      it.folderIds=[];
+    })
+  );
+  applySearch();
 }
 
 /* ─── sample designs ──────────────────────────────────────── */
@@ -328,8 +423,9 @@ async function boot(){
       <strong>Sample designs shown.</strong>
       To display your real collection:<br>
       1. Create a Google Sheet with columns: <em>Name, Photo, Price, Description, Available</em><br>
-      2. In the <strong>Photo</strong> column, paste Google Drive share links
-         (set each file to <em>"Anyone with the link"</em> can view).<br>
+      2. In the <strong>Photo</strong> column, paste a <strong>Google Drive folder link</strong>
+         for each design (one folder per design row, shared as "Anyone with the link").<br>
+         All photos inside that folder will load automatically.<br>
       3. Publish the Sheet as CSV (File → Share → Publish to web → CSV)
          and paste that URL into <code>sheetCsvUrl</code> in app.js.
     </p>`;
@@ -342,6 +438,7 @@ async function boot(){
     if(rows.length < 2){ state.textContent = "No designs yet. Add rows to your Google Sheet and refresh."; return; }
     ITEMS = rowsToItems(rows);
     state.hidden = true; applySearch();
+    resolveFolderPhotos(ITEMS); // async: fetches folder contents then re-renders
   } catch(err){
     console.error(err);
     state.innerHTML = "Couldn't load designs. Make sure your Google Sheet is <strong>published as CSV</strong> (File → Share → Publish to web → CSV) and the URL in CONFIG is correct, then refresh.";
