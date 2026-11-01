@@ -89,60 +89,8 @@ function driveUrls(id,w){
     `https://lh3.googleusercontent.com/d/${id}=w${w}`
   ];
 }
-
-/* ─── Folder photo fetching ────────────────────────────────────
-   Strategy: Google Drive exposes a public RSS/Atom feed for
-   folders shared as "Anyone with the link". We fetch that feed
-   (which is CORS-accessible), parse the entry links, and extract
-   file IDs from them.
-   Feed URL: https://drive.google.com/drive/folders/{id}?hl=en
-   (we use the embeddedfolderview endpoint which returns JSON-like data)
-─────────────────────────────────────────────────────────────── */
-const FOLDER_CACHE = {};
-
-async function fetchFolderPhotos(folderId){
-  if(FOLDER_CACHE[folderId]) return FOLDER_CACHE[folderId];
-  try {
-    // The public Drive folder page embeds file metadata in a data attribute
-    // We proxy via a CORS-friendly endpoint
-    const feedUrl =
-      `https://drive.google.com/drive/folders/${folderId}`;
-
-    // Use Google's own sharing page which returns structured data
-    // Best public CORS-accessible endpoint:
-    const exportUrl =
-      `https://drive.google.com/embeddedfolderview?id=${folderId}`;
-
-    const res = await fetch(exportUrl);
-    const html = await res.text();
-
-    // Extract all Drive file IDs referenced in the embedded folder view
-    const fileIdPattern = /\/file\/d\/([\w-]{20,})/g;
-    const ids = [...new Set(
-      [...html.matchAll(fileIdPattern)].map(m => m[1])
-    )];
-
-    if(!ids.length){
-      // Fallback: try alternate pattern used in some Drive responses
-      const altPattern = /"id":"([\w-]{25,})"/g;
-      const altIds = [...new Set(
-        [...html.matchAll(altPattern)].map(m => m[1])
-      )];
-      ids.push(...altIds);
-    }
-
-    const photos = ids.slice(0, 20).map(id => ({
-      thumb: driveUrls(id, 600),
-      full:  driveUrls(id, 1200)
-    }));
-
-    FOLDER_CACHE[folderId] = photos.length ? photos : [];
-    return FOLDER_CACHE[folderId];
-  } catch(e){
-    console.warn("Could not fetch folder photos:", folderId, e);
-    FOLDER_CACHE[folderId] = [];
-    return [];
-  }
+function driveFolderEmbedUrl(id){
+  return `https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(id)}#grid`;
 }
 function showPrice(p){
   p=(p||"").trim();
@@ -195,22 +143,6 @@ function rowsToItems(rows){
   }).filter(it=>it.folderIds.length || it.photos.length || it.name!=="Untitled design");
 }
 
-/* After initial render, fetch folder contents and re-render */
-async function resolveFolderPhotos(items){
-  const withFolders = items.filter(it=>it.folderIds && it.folderIds.length);
-  if(!withFolders.length) return;
-  await Promise.all(
-    withFolders.map(async it=>{
-      for(const fid of it.folderIds){
-        const photos = await fetchFolderPhotos(fid);
-        it.photos.push(...photos);
-      }
-      it.folderIds=[];
-    })
-  );
-  applySearch();
-}
-
 /* ─── sample designs ──────────────────────────────────────── */
 // Tiny inline SVGs as placeholders — no canvas, no memory spike
 function sampleSvg(bg, accent, accent2) {
@@ -253,7 +185,7 @@ function sampleSvg(bg, accent, accent2) {
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
 function sampleItems(){
-  const mk=(id,name,price,desc,det,bg,accent,sold)=>({id,name,price,description:desc,soldOut:!!sold,details:det,
+  const mk=(id,name,price,desc,det,bg,accent,sold)=>({id,name,price,description:desc,soldOut:!!sold,details:det,folderIds:[],
     photos:[{thumb:[sampleSvg(bg,accent)],full:[sampleSvg(bg,accent)]}]});
   return [
     mk(0,"Indigo Diamond Saree","₹4,200","Classic double-ikat weave in deep indigo with kora motifs. Replace these with your real designs by connecting your Google Sheet.",[["Fabric","Cotton"],["Colours","Indigo, kora, madder"],["Length","5.5 m + blouse"]],"#1B2A57","#C89B4A","#E3C48C"),
@@ -296,12 +228,20 @@ function renderGrid(items){
   grid.innerHTML = "";
   items.forEach(it => {
     const li = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.className = "item"; btn.type = "button";
-    btn.setAttribute("aria-label", "View details: " + it.name);
+    const card = document.createElement("article");
+    card.className = "item";
 
     const thumb = document.createElement("div"); thumb.className = "thumb";
-    if(it.photos.length){
+    if(it.folderIds.length){
+      const frame = document.createElement("iframe");
+      frame.className = "folder-preview";
+      frame.src = driveFolderEmbedUrl(it.folderIds[0]);
+      frame.title = `Photos of ${it.name}`;
+      frame.loading = "lazy";
+      frame.tabIndex = -1;
+      frame.setAttribute("aria-hidden", "true");
+      thumb.appendChild(frame);
+    } else if(it.photos.length){
       const img = document.createElement("img");
       img.alt = it.name; img.loading = "lazy"; img.decoding = "async";
       setImg(img, it.photos[0].thumb);
@@ -319,9 +259,12 @@ function renderGrid(items){
     const n = document.createElement("span"); n.className = "cap-name"; n.textContent = it.name; cap.appendChild(n);
     if(it.price){ const p = document.createElement("span"); p.className = "cap-price"; p.textContent = it.price; cap.appendChild(p); }
 
-    btn.append(thumb, cap);
-    btn.addEventListener("click", () => openDesign(it));
-    li.appendChild(btn); grid.appendChild(li);
+    const open = document.createElement("button");
+    open.className = "item-open"; open.type = "button";
+    open.setAttribute("aria-label", "View details: " + it.name);
+    open.addEventListener("click", () => openDesign(it));
+    card.append(thumb, cap, open);
+    li.appendChild(card); grid.appendChild(li);
   });
 }
 
@@ -343,8 +286,20 @@ function openDesign(it){
   });
   dl.hidden = !it.details.length;
 
-  const main = $("dlgMain"), thumbs = $("dlgThumbs"); thumbs.innerHTML = "";
+  const main = $("dlgMain"), thumbs = $("dlgThumbs"), folderFrame = $("dlgFolder");
+  thumbs.innerHTML = "";
   main.alt = it.name;
+  if(it.folderIds.length){
+    main.hidden = true;
+    thumbs.hidden = true;
+    folderFrame.hidden = false;
+    folderFrame.src = driveFolderEmbedUrl(it.folderIds[0]);
+    folderFrame.title = `All photos of ${it.name}`;
+  } else {
+    folderFrame.hidden = true;
+    folderFrame.removeAttribute("src");
+    main.hidden = false;
+  }
   const show = (ph, btnEl) => {
     main.style.visibility = "visible"; setImg(main, ph.full);
     thumbs.querySelectorAll("button").forEach(b => b.removeAttribute("aria-current"));
@@ -361,7 +316,7 @@ function openDesign(it){
     });
     show(it.photos[0], thumbs.querySelector("button"));
   }
-  thumbs.hidden = it.photos.length < 2;
+  if(!it.folderIds.length) thumbs.hidden = it.photos.length < 2;
   $("dlgWa").href = waLink(`Hello, I'm interested in "${it.name}"${it.price ? " (" + it.price + ")" : ""}. Is it available?`);
   dlg.showModal();
 }
@@ -420,7 +375,6 @@ async function boot(){
     if(rows.length < 2){ state.textContent = "No designs yet. Add rows to ganesh-handloom-products.csv and refresh."; return; }
     ITEMS = rowsToItems(rows);
     state.hidden = true; applySearch();
-    resolveFolderPhotos(ITEMS); // async: fetches folder contents then re-renders
   } catch(err){
     console.error(err);
     state.innerHTML = "Couldn't load designs. Make sure ganesh-handloom-products.csv is beside index.html and contains a header row and at least one design row, then refresh.";
